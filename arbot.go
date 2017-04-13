@@ -165,12 +165,11 @@ func main() {
 	}
 
 	// init buffers
-	var bestPrices map[string]*PricePoint
 	http_buf := make(map[string]interface{})
 	socket_buf := make(map[string][][]string)
 
 	// get initial best prices via http for all pairs
-	bestPrices, err = initBestPrices(channels, http_buf)
+	bestPrices, err := initBestPrices(channels, http_buf)
 	if err != nil {
 		log.Fatalln(err)
 	}
