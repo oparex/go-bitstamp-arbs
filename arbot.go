@@ -95,21 +95,29 @@ func parseHttpPricePoint(raw_message []byte, msg_buf map[string]interface{}) (*P
 	return &PricePoint{bid, ask}, nil
 }
 
+func getBestPrice(pair string, msg_buf map[string]interface{}) (*PricePoint, error) {
+	resp, err := http.Get("https://www.bitstamp.net/api/v2/order_book/" + pair)
+	if err != nil {
+		return nil, err
+	}
+	defer resp.Body.Close()
+	body, err := ioutil.ReadAll(resp.Body)
+	if err != nil {
+		return nil, err
+	}
+	pp, err := parseHttpPricePoint(body, msg_buf)
+	if err != nil {
+		return nil, err
+	}
+	return pp, nil
+}
+
 // get all initial prices for pairs/channels via http
 func initBestPrices(channels map[string]string, msg_buf map[string]interface{}) (map[string]*PricePoint, error) {
 	bestPrices := make(map[string]*PricePoint)
 
 	for pair, channel := range channels {
-		resp, err := http.Get("https://www.bitstamp.net/api/v2/order_book/" + pair)
-		if err != nil {
-			return nil, err
-		}
-		defer resp.Body.Close()
-		body, err := ioutil.ReadAll(resp.Body)
-		if err != nil {
-			return nil, err
-		}
-		pp, err := parseHttpPricePoint(body, msg_buf)
+		pp, err := getBestPrice(pair, msg_buf)
 		if err != nil {
 			return nil, err
 		}
