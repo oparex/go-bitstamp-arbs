@@ -62,40 +62,40 @@ func (pths *Paths) checkPaths(bestPrices map[string]*PricePoint) map[string]floa
 }
 
 // get PricePoint from a socket message
-func parseSocketPricePoint(raw_message string, msg_buf map[string][][]string) (*PricePoint, error) {
-	err := json.Unmarshal([]byte(raw_message), &msg_buf)
+func parseSocketPricePoint(raw_message string, msgBuf map[string][][]string) (*PricePoint, error) {
+	err := json.Unmarshal([]byte(raw_message), &msgBuf)
 	if err != nil {
 		return nil, errors.New("Could not unmarshal raw message into json: " + raw_message)
 	}
-	bid, err := strconv.ParseFloat(msg_buf["bids"][0][0], 64)
+	bid, err := strconv.ParseFloat(msgBuf["bids"][0][0], 64)
 	if err != nil {
-		return nil, errors.New("Could not convert best bid to float: " + msg_buf["bids"][0][0])
+		return nil, errors.New("Could not convert best bid to float: " + msgBuf["bids"][0][0])
 	}
-	ask, err := strconv.ParseFloat(msg_buf["asks"][0][0], 64)
+	ask, err := strconv.ParseFloat(msgBuf["asks"][0][0], 64)
 	if err != nil {
-		return nil, errors.New("Could not convert best ask to float: " + msg_buf["asks"][0][0])
+		return nil, errors.New("Could not convert best ask to float: " + msgBuf["asks"][0][0])
 	}
 	return &PricePoint{bid, ask}, nil
 }
 
 // get PricePoint from a http message
-func parseHttpPricePoint(raw_message []byte, msg_buf map[string]interface{}) (*PricePoint, error) {
-	err := json.Unmarshal(raw_message, &msg_buf)
+func parseHttpPricePoint(raw_message []byte, msgBuf map[string]interface{}) (*PricePoint, error) {
+	err := json.Unmarshal(raw_message, &msgBuf)
 	if err != nil {
 		return nil, errors.New("Could not unmarshal raw message into json from http " + string(raw_message))
 	}
-	bid, err := strconv.ParseFloat(msg_buf["bids"].([]interface{})[0].([]interface{})[0].(string), 64)
+	bid, err := strconv.ParseFloat(msgBuf["bids"].([]interface{})[0].([]interface{})[0].(string), 64)
 	if err != nil {
-		return nil, errors.New("Could not convert best bid to float: " + msg_buf["bids"].([]interface{})[0].([]interface{})[0].(string))
+		return nil, errors.New("Could not convert best bid to float: " + msgBuf["bids"].([]interface{})[0].([]interface{})[0].(string))
 	}
-	ask, err := strconv.ParseFloat(msg_buf["asks"].([]interface{})[0].([]interface{})[0].(string), 64)
+	ask, err := strconv.ParseFloat(msgBuf["asks"].([]interface{})[0].([]interface{})[0].(string), 64)
 	if err != nil {
-		return nil, errors.New("Could not convert best ask to float: " + msg_buf["asks"].([]interface{})[0].([]interface{})[0].(string))
+		return nil, errors.New("Could not convert best ask to float: " + msgBuf["asks"].([]interface{})[0].([]interface{})[0].(string))
 	}
 	return &PricePoint{bid, ask}, nil
 }
 
-func getBestPrice(pair string, msg_buf map[string]interface{}) (*PricePoint, error) {
+func getBestPrice(pair string, msgBuf map[string]interface{}) (*PricePoint, error) {
 	resp, err := http.Get("https://www.bitstamp.net/api/v2/order_book/" + pair)
 	if err != nil {
 		return nil, err
@@ -105,7 +105,7 @@ func getBestPrice(pair string, msg_buf map[string]interface{}) (*PricePoint, err
 	if err != nil {
 		return nil, err
 	}
-	pp, err := parseHttpPricePoint(body, msg_buf)
+	pp, err := parseHttpPricePoint(body, msgBuf)
 	if err != nil {
 		return nil, err
 	}
@@ -113,11 +113,11 @@ func getBestPrice(pair string, msg_buf map[string]interface{}) (*PricePoint, err
 }
 
 // get all initial prices for pairs/channels via http
-func initBestPrices(channels map[string]string, msg_buf map[string]interface{}) (map[string]*PricePoint, error) {
+func initBestPrices(channels map[string]string, msgBuf map[string]interface{}) (map[string]*PricePoint, error) {
 	bestPrices := make(map[string]*PricePoint)
 
 	for pair, channel := range channels {
-		pp, err := getBestPrice(pair, msg_buf)
+		pp, err := getBestPrice(pair, msgBuf)
 		if err != nil {
 			return nil, err
 		}
@@ -173,11 +173,11 @@ func main() {
 	}
 
 	// init buffers
-	http_buf := make(map[string]interface{})
-	socket_buf := make(map[string][][]string)
+	httpBuf := make(map[string]interface{})
+	socketBuf := make(map[string][][]string)
 
 	// get initial best prices via http for all pairs
-	bestPrices, err := initBestPrices(channels, http_buf)
+	bestPrices, err := initBestPrices(channels, httpBuf)
 	if err != nil {
 		log.Fatalln(err)
 	}
@@ -185,7 +185,7 @@ func main() {
 	// start listening
 	for {
 		dataEvt := <-dataChannelOrderBook
-		pp, err := parseSocketPricePoint(dataEvt.Data, socket_buf)
+		pp, err := parseSocketPricePoint(dataEvt.Data, socketBuf)
 		if err != nil {
 			log.Println(err)
 		}
