@@ -182,7 +182,12 @@ func main() {
 			log.Println(err)
 		}
 		bestPrices[dataEvt.Channel] = pp
-		// print out which channel emitted this message and what is the arb profit for each path
-		log.Println(dataEvt.Channel, paths.checkPaths(bestPrices))
+
+		// print out the arb profit for each path (or write it to file for further analysis)
+		j, err := json.Marshal(paths.checkPaths(bestPrices))
+		if err != nil {
+			log.Println(err)
+		}
+		log.Println(string(j))
 	}
 }
