@@ -139,17 +139,17 @@ var channels = map[string]string{
 // map of paths to check for arbitrage - name: []PathNode
 var paths = Paths{map[string]*Path{
 	"ubxu": {[]PathNode{{"btcusd", "ask"}, {"xrpbtc", "ask"}, {"xrpusd", "bid"}}},
-	"ubxeu": {[]PathNode{{"btcusd", "ask"}, {"xrpbtc", "ask"}, {"xrpeur", "bid"}, {"eurusd", "bid"}}},
+	//"ubxeu": {[]PathNode{{"btcusd", "ask"}, {"xrpbtc", "ask"}, {"xrpeur", "bid"}, {"eurusd", "bid"}}},
 	"ubeu": {[]PathNode{{"btcusd", "ask"}, {"btceur", "bid"}, {"eurusd", "bid"}}},
-	"ubexu": {[]PathNode{{"btcusd", "ask"}, {"btceur", "bid"}, {"xrpeur", "ask"}, {"xrpusd", "bid"}}},
+	//"ubexu": {[]PathNode{{"btcusd", "ask"}, {"btceur", "bid"}, {"xrpeur", "ask"}, {"xrpusd", "bid"}}},
 	"uxbu": {[]PathNode{{"xrpusd", "ask"}, {"xrpbtc", "bid"}, {"btcusd", "bid"}}},
-	"uxbeu": {[]PathNode{{"xrpusd", "ask"}, {"xrpbtc", "bid"}, {"btceur", "bid"}, {"eurusd", "bid"}}},
+	//"uxbeu": {[]PathNode{{"xrpusd", "ask"}, {"xrpbtc", "bid"}, {"btceur", "bid"}, {"eurusd", "bid"}}},
 	"uxeu": {[]PathNode{{"xrpusd", "ask"}, {"xrpeur", "bid"}, {"eurusd", "bid"}}},
-	"uxebu": {[]PathNode{{"xrpusd", "ask"}, {"xrpeur", "bid"}, {"btceur", "ask"}, {"btcusd", "bid"}}},
+	//"uxebu": {[]PathNode{{"xrpusd", "ask"}, {"xrpeur", "bid"}, {"btceur", "ask"}, {"btcusd", "bid"}}},
 	"uebu": {[]PathNode{{"eurusd", "ask"}, {"btceur", "ask"}, {"btcusd", "bid"}}},
-	"uebxu": {[]PathNode{{"eurusd", "ask"}, {"btceur", "ask"}, {"xrpbtc", "ask"}, {"xrpusd", "bid"}}},
+	//"uebxu": {[]PathNode{{"eurusd", "ask"}, {"btceur", "ask"}, {"xrpbtc", "ask"}, {"xrpusd", "bid"}}},
 	"uexu": {[]PathNode{{"eurusd", "ask"}, {"xrpeur", "ask"}, {"xrpusd", "bid"}}},
-	"uexbu": {[]PathNode{{"eurusd", "ask"}, {"xrpeur", "ask"}, {"xrpbtc", "bid"}, {"btcusd", "bid"}}},
+	//"uexbu": {[]PathNode{{"eurusd", "ask"}, {"xrpeur", "ask"}, {"xrpbtc", "bid"}, {"btcusd", "bid"}}},
 }}
 
 func main() {
@@ -188,6 +188,7 @@ func main() {
 		pp, err := parseSocketPricePoint(dataEvt.Data, socketBuf)
 		if err != nil {
 			log.Println(err)
+			continue
 		}
 		bestPrices[dataEvt.Channel] = pp
 
@@ -195,6 +196,7 @@ func main() {
 		j, err := json.Marshal(paths.checkPaths(bestPrices))
 		if err != nil {
 			log.Println(err)
+			continue
 		}
 		log.Println(string(j))
 	}
