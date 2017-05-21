@@ -2,4 +2,7 @@
 .idea/
 
 ## Secrets
-secrets/secrets.go
+config/secrets.go
+
+## build files
+arbot
