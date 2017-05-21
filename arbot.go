@@ -1,166 +1,22 @@
 package main
 
 import (
-	"github.com/toorop/go-pusher"
 	"log"
-	"encoding/json"
-	"strconv"
-	"errors"
-	"net/http"
-	"io/ioutil"
+	"github.com/toorop/go-pusher"
+	"github.com/ajph/bitstamp-go"
+	"arbot/config"
+	"arbot/parser"
 )
-
-const (
-	APP_KEY = "de504dc5763aeef9ff52" // bitstamp
-)
-
-type PricePoint struct {
-	bid float64
-	ask float64
-}
-
-type PathNode struct {
-	pair string
-	side string
-}
-
-type Path struct {
-	path []PathNode
-}
-
-type Paths struct {
-	paths map[string]*Path
-}
-
-// check path for arbitrage
-func (pth *Path) checkPath(bestPrices map[string]*PricePoint) float64 {
-	outcome := 1.0
-	bpKey := ""
-	for _, p := range pth.path {
-		if p.pair == "btcusd" {
-			bpKey = "order_book"
-		} else {
-			bpKey = "order_book_" + p.pair
-		}
-		if p.side == "ask" {
-			outcome /= bestPrices[bpKey].ask
-		}
-		if p.side == "bid" {
-			outcome *= bestPrices[bpKey].bid
-		}
-	}
-	return outcome
-}
-
-// check all paths for arbitrage
-func (pths *Paths) checkPaths(bestPrices map[string]*PricePoint) map[string]float64 {
-	outcome := make(map[string]float64)
-	for name, path := range pths.paths {
-		outcome[name] = path.checkPath(bestPrices)
-	}
-	return outcome
-}
-
-// get PricePoint from a socket message
-func parseSocketPricePoint(raw_message string, msgBuf map[string][][]string) (*PricePoint, error) {
-	err := json.Unmarshal([]byte(raw_message), &msgBuf)
-	if err != nil {
-		return nil, errors.New("Could not unmarshal raw message into json: " + raw_message)
-	}
-	bid, err := strconv.ParseFloat(msgBuf["bids"][0][0], 64)
-	if err != nil {
-		return nil, errors.New("Could not convert best bid to float: " + msgBuf["bids"][0][0])
-	}
-	ask, err := strconv.ParseFloat(msgBuf["asks"][0][0], 64)
-	if err != nil {
-		return nil, errors.New("Could not convert best ask to float: " + msgBuf["asks"][0][0])
-	}
-	return &PricePoint{bid, ask}, nil
-}
-
-// get PricePoint from a http message
-func parseHttpPricePoint(raw_message []byte, msgBuf map[string]interface{}) (*PricePoint, error) {
-	err := json.Unmarshal(raw_message, &msgBuf)
-	if err != nil {
-		return nil, errors.New("Could not unmarshal raw message into json from http " + string(raw_message))
-	}
-	bid, err := strconv.ParseFloat(msgBuf["bids"].([]interface{})[0].([]interface{})[0].(string), 64)
-	if err != nil {
-		return nil, errors.New("Could not convert best bid to float: " + msgBuf["bids"].([]interface{})[0].([]interface{})[0].(string))
-	}
-	ask, err := strconv.ParseFloat(msgBuf["asks"].([]interface{})[0].([]interface{})[0].(string), 64)
-	if err != nil {
-		return nil, errors.New("Could not convert best ask to float: " + msgBuf["asks"].([]interface{})[0].([]interface{})[0].(string))
-	}
-	return &PricePoint{bid, ask}, nil
-}
-
-func getBestPrice(pair string, msgBuf map[string]interface{}) (*PricePoint, error) {
-	resp, err := http.Get("https://www.bitstamp.net/api/v2/order_book/" + pair)
-	if err != nil {
-		return nil, err
-	}
-	defer resp.Body.Close()
-	body, err := ioutil.ReadAll(resp.Body)
-	if err != nil {
-		return nil, err
-	}
-	pp, err := parseHttpPricePoint(body, msgBuf)
-	if err != nil {
-		return nil, err
-	}
-	return pp, nil
-}
-
-// get all initial prices for pairs/channels via http
-func initBestPrices(channels map[string]string, msgBuf map[string]interface{}) (map[string]*PricePoint, error) {
-	bestPrices := make(map[string]*PricePoint)
-
-	for pair, channel := range channels {
-		pp, err := getBestPrice(pair, msgBuf)
-		if err != nil {
-			return nil, err
-		}
-		bestPrices[channel] = pp
-	}
-	return bestPrices, nil
-}
-
-// pair/channel map of currency pairs to track
-var channels = map[string]string{
-	"btcusd": "order_book",
-	"btceur": "order_book_btceur",
-	"eurusd": "order_book_eurusd",
-	"xrpusd": "order_book_xrpusd",
-	"xrpeur": "order_book_xrpeur",
-	"xrpbtc": "order_book_xrpbtc",
-}
-
-// map of paths to check for arbitrage - name: []PathNode
-var paths = Paths{map[string]*Path{
-	"ubxu": {[]PathNode{{"btcusd", "ask"}, {"xrpbtc", "ask"}, {"xrpusd", "bid"}}},
-	//"ubxeu": {[]PathNode{{"btcusd", "ask"}, {"xrpbtc", "ask"}, {"xrpeur", "bid"}, {"eurusd", "bid"}}},
-	"ubeu": {[]PathNode{{"btcusd", "ask"}, {"btceur", "bid"}, {"eurusd", "bid"}}},
-	//"ubexu": {[]PathNode{{"btcusd", "ask"}, {"btceur", "bid"}, {"xrpeur", "ask"}, {"xrpusd", "bid"}}},
-	"uxbu": {[]PathNode{{"xrpusd", "ask"}, {"xrpbtc", "bid"}, {"btcusd", "bid"}}},
-	//"uxbeu": {[]PathNode{{"xrpusd", "ask"}, {"xrpbtc", "bid"}, {"btceur", "bid"}, {"eurusd", "bid"}}},
-	"uxeu": {[]PathNode{{"xrpusd", "ask"}, {"xrpeur", "bid"}, {"eurusd", "bid"}}},
-	//"uxebu": {[]PathNode{{"xrpusd", "ask"}, {"xrpeur", "bid"}, {"btceur", "ask"}, {"btcusd", "bid"}}},
-	"uebu": {[]PathNode{{"eurusd", "ask"}, {"btceur", "ask"}, {"btcusd", "bid"}}},
-	//"uebxu": {[]PathNode{{"eurusd", "ask"}, {"btceur", "ask"}, {"xrpbtc", "ask"}, {"xrpusd", "bid"}}},
-	"uexu": {[]PathNode{{"eurusd", "ask"}, {"xrpeur", "ask"}, {"xrpusd", "bid"}}},
-	//"uexbu": {[]PathNode{{"eurusd", "ask"}, {"xrpeur", "ask"}, {"xrpbtc", "bid"}, {"btcusd", "bid"}}},
-}}
 
 func main() {
 
 	// init pusher client
-	pusherClient, err := pusher.NewClient(APP_KEY)
+	pusherClient, err := pusher.NewClient(config.WEBSOCKET_APP_KEY)
 	if err != nil {
 		log.Fatalln(err)
 	}
 	// subscribe to all channels
-	for _, c := range channels {
+	for _, c := range config.Channels {
 		err = pusherClient.Subscribe(c)
 		if err != nil {
 			log.Fatalln("Subscription error : ", err, c)
@@ -177,27 +33,23 @@ func main() {
 	socketBuf := make(map[string][][]string)
 
 	// get initial best prices via http for all pairs
-	bestPrices, err := initBestPrices(channels, httpBuf)
+	bestPrices, err := parser.InitBestPrices(config.Channels, httpBuf)
 	if err != nil {
 		log.Fatalln(err)
 	}
 
+	bitstamp.SetAuth(config.CLIENTID, config.KEY, config.SECRET)
+
 	// start listening
 	for {
 		dataEvt := <-dataChannelOrderBook
-		pp, err := parseSocketPricePoint(dataEvt.Data, socketBuf)
+		pp, err := parser.ParseSocketPricePoint(dataEvt.Data, socketBuf)
 		if err != nil {
 			log.Println(err)
 			continue
 		}
 		bestPrices[dataEvt.Channel] = pp
 
-		// print out the arb profit for each path (or write it to file for further analysis)
-		j, err := json.Marshal(paths.checkPaths(bestPrices))
-		if err != nil {
-			log.Println(err)
-			continue
-		}
-		log.Println(string(j))
+		bestPrices.CheckPaths(config.Paths)
 	}
 }
