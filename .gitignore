@@ -1,2 +1,5 @@
 ## Idea config folder
 .idea/
+
+## Secrets
+secrets/secrets.go
